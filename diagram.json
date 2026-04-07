@@ -13,7 +13,7 @@
 	"connections": [
 		[ "uno:5V", "dht1:VCC", "red", [ "v0" ] ],
 		[ "uno:GND.1", "dht1:GND", "black", [ "v0" ] ],
-		[ "uno:2", "dht1:SDA", "green", [ "v0" ] ],
+		[ "uno:7", "dht1:SDA", "green", [ "v0" ] ],
 
 		[ "uno:5V", "pot1:VCC", "red", [ "v0" ] ],
 		[ "uno:GND.2", "pot1:GND", "black", [ "v0" ] ],
