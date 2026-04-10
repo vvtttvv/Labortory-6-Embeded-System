@@ -3,6 +3,32 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+// On UNO it increases RAM/flash usage, I was forced to disable it to fit the code
+
+// static int io_serial_putchar(char c, FILE* stream) {
+//   (void)stream;
+//   if (c == '\n') {
+//     Serial.write('\r');
+//   }
+//   Serial.write((uint8_t)c);
+//   return 0;
+// }
+//
+// static int io_serial_getchar(FILE* stream) {
+//   (void)stream;
+//   while (!Serial.available()) {
+//   }
+//   return Serial.read();
+// }
+//
+// static FILE io_serial_stdio;
+//
+// void io_bind_stdio_to_serial(void) {
+//   fdev_setup_stream(&io_serial_stdio, io_serial_putchar, io_serial_getchar, _FDEV_SETUP_RW);
+//   stdout = &io_serial_stdio;
+//   stdin = &io_serial_stdio;
+// }
+
 void io_init_output(uint8_t pin) {
   pinMode(pin, OUTPUT);
 }
@@ -27,13 +53,23 @@ void io_uart_begin(unsigned long baudrate) {
   Serial.begin(baudrate);
 }
 
-void io_stdio_init(void) {
+int io_printf(const char* fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+
+  char buffer[80];
+  int written = vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+
+  Serial.print(buffer);
+  return written;
 }
 
 int io_stdio_printf(const char* fmt, ...) {
-  char buffer[128];
   va_list args;
   va_start(args, fmt);
+
+  char buffer[80];
   int written = vsnprintf(buffer, sizeof(buffer), fmt, args);
   va_end(args);
 

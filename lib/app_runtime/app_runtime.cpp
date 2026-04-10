@@ -8,7 +8,6 @@
 #include "actuator_driver.h"
 #include "app_config.h"
 #include "app_state.h"
-#include "debounce_input.h"
 #include "dht_driver.h"
 #include "hysteresis_control.h"
 #include "io_driver.h"
@@ -36,17 +35,17 @@ void app_runtime_init(void) {
   g_state_mutex = xSemaphoreCreateMutex();
 
   if (g_state_mutex == NULL) {
-    Serial.println(F("ERR: mutex create failed"));
+    io_printf("ERR: mutex create failed\n");
     while (1) {
     }
   }
 
   g_app_state.hysteresis_c = HYSTERESIS_HALF_BAND_C;
-  BaseType_t rc1 = xTaskCreate(task_control, "control", 512, NULL, 2, NULL);
-  BaseType_t rc2 = xTaskCreate(task_report, "report", 256, NULL, 1, NULL);
+  BaseType_t rc1 = xTaskCreate(task_control, "control", STACK_CONTROL_BYTES, NULL, 2, NULL);
+  BaseType_t rc2 = xTaskCreate(task_report, "report", STACK_REPORT_BYTES, NULL, 1, NULL);
 
   if (rc1 != pdPASS || rc2 != pdPASS) {
-    Serial.println(F("ERR: xTaskCreate failed (RAM/stack)"));
+    io_printf("ERR: xTaskCreate failed (RAM/stack)\n");
     while (1) {
       actuator_driver_set(1);
       _delay_ms(150);
@@ -55,7 +54,7 @@ void app_runtime_init(void) {
     }
   }
 
-  Serial.println(F("INFO: started"));
+  io_printf("INFO: started\n");
 }
 
 static void task_control(void* pv) {
@@ -85,8 +84,7 @@ static void task_control(void* pv) {
       } else {
         dht_fail_streak++;
         if (dht_fail_streak == 1 || dht_fail_streak % 5 == 0) {
-          Serial.print(F("WARN: DHT read fail count="));
-          Serial.println(dht_fail_streak);
+          io_printf("WARN: DHT read fail count=%u\n", dht_fail_streak);
         }
       }
       g_app_state.setpoint_c = setpoint;
@@ -108,7 +106,7 @@ static void task_control(void* pv) {
 
       xSemaphoreGive(g_state_mutex);
     } else {
-      Serial.println(F("ERR: CTRL mutex timeout"));
+      io_printf("ERR: CTRL mutex timeout\n");
     }
 
     vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(PERIOD_CONTROL_MS));
@@ -126,22 +124,15 @@ static void task_report(void* pv) {
       copy = g_app_state;
       xSemaphoreGive(g_state_mutex);
 
-      Serial.print(F("SetPoint:"));
-      Serial.print(copy.setpoint_c, 2);
-      Serial.print(' ');
-      Serial.print(F("Value:"));
-      Serial.print(copy.measured_c, 2);
-      Serial.print(' ');
-      Serial.print(F("Humidity:"));
-      Serial.print(copy.measured_humidity_pct, 1);
-      Serial.print(' ');
-      Serial.print(F("Output:"));
-      Serial.print(copy.actuator_on);
-      Serial.print(' ');
-      Serial.print(F("Enable:"));
-      Serial.println(copy.control_enabled);
+      io_uart_print_report(
+        copy.setpoint_c,
+        copy.measured_c,
+        copy.measured_humidity_pct,
+        copy.actuator_on,
+        copy.control_enabled
+      );
     } else {
-      Serial.println(F("ERR: RPT mutex timeout"));
+      io_printf("ERR: RPT mutex timeout\n");
     }
 
     vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(PERIOD_REPORT_MS));
